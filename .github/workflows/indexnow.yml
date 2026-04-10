@@ -1,4 +1,4 @@
-indexnow.yml: Submit changed pages to IndexNow
+name: Submit changed pages to IndexNow
 
 on:
   push:
