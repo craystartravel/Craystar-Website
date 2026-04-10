@@ -1,4 +1,0 @@
-User-agent: *
-allow:
-
-Sitemap: https://craystartravelagency.com/sitemap.xml
