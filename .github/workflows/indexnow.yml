@@ -1,0 +1,52 @@
+yamlname: Submit changed pages to IndexNow
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.html'
+  workflow_dispatch:
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Find HTML files to submit
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            CHANGED=$(git ls-files '*.html')
+          else
+            CHANGED=$(git diff --name-only --diff-filter=AM HEAD^ HEAD | grep '\.html$' || true)
+          fi
+          if [ -z "$CHANGED" ]; then
+            echo "No HTML changes to submit."
+            echo "urls=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          URLS=""
+          while IFS= read -r FILE; do
+            CLEAN=$(echo "$FILE" | sed 's|^/||' | sed 's|index\.html$||')
+            URLS="$URLS\"https://craystartravelagency.com/$CLEAN\","
+          done <<< "$CHANGED"
+          URLS="[${URLS%,}]"
+          echo "urls=$URLS" >> $GITHUB_OUTPUT
+          echo "Submitting: $URLS"
+
+      - name: Submit to IndexNow
+        if: steps.changed.outputs.urls != ''
+        run: |
+          curl -X POST "https://api.indexnow.org/indexnow" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            -w "\nHTTP Status: %{http_code}\n" \
+            -d '{
+              "host": "craystartravelagency.com",
+              "key": "${{ secrets.INDEXNOW_KEY }}",
+              "keyLocation": "https://craystartravelagency.com/${{ secrets.INDEXNOW_KEY }}.txt",
+              "urlList": ${{ steps.changed.outputs.urls }}
+            }'
